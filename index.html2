@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台股損益計算機</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    font-size: 24px;
+    margin: 0;
+    padding: 30px;
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    width: 100%;
+    max-width: 600px;
+}
+
+h2 {
+    font-size: 28px;
+    font-weight: bold;
+}
+
+h3 {
+    font-size: 32px;
+}
+
+input,
+select,
+button {
+    font-size: 24px;
+    padding: 8px;
+    margin: 5px;
+}
+
+.priceInput {
+    width: 280px;
+}
+
+.qtyInput {
+    width: 280px;
+}
+
+.discountInput {
+    width: 120px;
+}
+
+#result {
+    font-size: 28px;
+    margin-top: 20px;
+    line-height: 1.8;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>台股損益計算機</h2>
+
+<label>類型：</label>
+
+<select id="type">
+    <option value="stock">股票</option>
+    <option value="daytrade">當沖</option>
+    <option value="etf">ETF</option>
+</select>
+
+<br><br>
+
+<label>買入價格：</label>
+
+<input
+    type="number"
+    id="buy"
+    class="priceInput"
+    step="0.01"
+>
+
+<br><br>
+
+<label>賣出價格：</label>
+
+<input
+    type="number"
+    id="sell"
+    class="priceInput"
+    step="0.01"
+>
+
+<br><br>
+
+<label>數量：</label>
+
+<input
+    type="number"
+    id="qty"
+    class="qtyInput"
+    min="1"
+    step="1"
+>
+
+<select id="unit">
+    <option value="share">股</option>
+    <option value="lot">張</option>
+</select>
+
+<br><br>
+
+<button onclick="calc()">計算</button>
+<button onclick="clearAll()">清除</button>
+
+<label style="margin-left:20px;">手續費折扣：</label>
+
+<input
+    type="number"
+    id="discount"
+    step="0.01"
+    min="0.01"
+    max="10"
+    value="10"
+    style="width:100px;"
+> 折
+
+<hr>
+
+<h3 id="resultTitle" style="display:none;">結果</h3>
+
+<div id="result"></div>
+
+</div>
+
+<script>
+function calc() {
+
+    const type = document.getElementById("type").value;
+
+    const buy = parseFloat(
+        document.getElementById("buy").value
+    );
+
+    const sell = parseFloat(
+        document.getElementById("sell").value
+    );
+
+    const inputQty = parseInt(
+        document.getElementById("qty").value
+    );
+
+    const unit = document.getElementById("unit").value;
+
+    const discountInput = parseFloat(
+        document.getElementById("discount").value
+    );
+
+    const discount = discountInput / 10;
+
+    if (
+        isNaN(buy) ||
+        isNaN(sell) ||
+        isNaN(inputQty) ||
+        isNaN(discountInput) ||
+        buy < 0 ||
+        sell < 0 ||
+        inputQty <= 0 ||
+        discountInput <= 0 ||
+        discountInput > 10 ||
+        (buy === 0 && sell === 0)
+    ) {
+        alert("請輸入正確資料");
+        return;
+    }
+
+    document.getElementById("resultTitle").style.display = "block";
+
+    const qty =
+        unit === "lot"
+        ? inputQty * 1000
+        : inputQty;
+
+    const buyCost = buy * qty;
+    const sellValue = sell * qty;
+
+    const buyFee = Math.max(
+        Math.floor(
+            buyCost * 0.001425 * discount
+        ),
+        1
+    );
+
+    const sellFee = Math.max(
+        Math.floor(
+            sellValue * 0.001425 * discount
+        ),
+        1
+    );
+
+    let taxRate = 0;
+
+    if (type === "stock") {
+        taxRate = 0.003;
+    } else if (type === "daytrade") {
+        taxRate = 0.0015;
+    } else if (type === "etf") {
+        taxRate = 0.001;
+    }
+
+    const tax = Math.floor(
+        sellValue * taxRate
+    );
+
+    const totalBuyCost =
+        buyCost + buyFee;
+
+    const netSellIncome =
+        sellValue - sellFee - tax;
+
+    const profit =
+        netSellIncome - totalBuyCost;
+
+    const roi =
+        totalBuyCost > 0
+        ? (profit / totalBuyCost) * 100
+        : 0;
+
+    document.getElementById("result").innerHTML = `
+        手續費折扣：${discountInput}折<br><br>
+
+        股數：${qty.toLocaleString()} 股<br><br>
+
+        買入成交金額：${Math.floor(buyCost).toLocaleString()} 元<br>
+        買入手續費：${buyFee.toLocaleString()} 元<br>
+        總買入成本：${Math.floor(totalBuyCost).toLocaleString()} 元<br><br>
+
+        賣出成交金額：${Math.floor(sellValue).toLocaleString()} 元<br>
+        賣出手續費：${sellFee.toLocaleString()} 元<br>
+        證交稅：${tax.toLocaleString()} 元<br>
+        賣出淨收入：${Math.floor(netSellIncome).toLocaleString()} 元<br><br>
+
+        <h3>損益：${Math.floor(profit).toLocaleString()} 元</h3>
+
+        <h3>投報率：${roi.toFixed(2)}%</h3>
+    `;
+}
+
+function clearAll() {
+
+    document.getElementById("buy").value = "";
+    document.getElementById("sell").value = "";
+    document.getElementById("qty").value = "";
+
+    document.getElementById("discount").value = "10";
+
+    document.getElementById("type").value = "stock";
+
+    document.getElementById("unit").value = "share";
+
+    document.getElementById("result").innerHTML = "";
+
+    document.getElementById("resultTitle").style.display = "none";
+}
+</script>
+
+</body>
+</html>
